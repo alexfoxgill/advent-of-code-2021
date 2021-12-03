@@ -14,10 +14,17 @@ gammaBools =
   |> Stream.zip()
   |> Enum.map(&(Tuple.to_list(&1) |> Enum.sum() > 0))
 
-gammaStr = gammaBools |> Enum.map(fn x -> if x, do: "1", else: "0" end)
-epsilonStr = gammaBools |> Enum.map(fn x -> if x, do: "0", else: "1" end)
+getInt = fn bools ->
+  bools
+  |> Enum.map(fn
+    true -> "1"
+    false -> "0"
+  end)
+  |> Enum.join()
+  |> String.to_integer(2)
+end
 
-gamma = gammaStr |> Enum.join() |> String.to_integer(2)
-epsilon = epsilonStr |> Enum.join() |> String.to_integer(2)
+gamma = gammaBools |> getInt.()
+epsilon = gammaBools |> Enum.map(&not/1) |> getInt.()
 
 IO.puts(gamma * epsilon)
