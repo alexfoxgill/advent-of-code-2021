@@ -6,7 +6,10 @@ gammaBools =
     line
     |> String.trim()
     |> String.to_charlist()
-    |> Enum.map(fn x -> if x == ?1, do: 1, else: -1 end)
+    |> Enum.map(fn
+      ?1 -> 1
+      ?0 -> -1
+    end)
   end)
   |> Stream.zip()
   |> Enum.map(&(Tuple.to_list(&1) |> Enum.sum() > 0))
