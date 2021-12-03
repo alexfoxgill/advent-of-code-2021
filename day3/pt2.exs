@@ -7,10 +7,8 @@ parsed =
 process = fn {a, b} ->
   Stream.iterate(0, &(&1 + 1))
   |> Stream.scan(parsed, fn i, lines ->
-    len = Enum.count(lines)
-    threshold = len / 2.0
-    sum = lines |> Enum.map(&Enum.at(&1, i)) |> Enum.sum()
-    selected = if sum >= threshold, do: a, else: b
+    sum = lines |> Stream.map(&(Enum.at(&1, i) * 2 - 1)) |> Enum.sum()
+    selected = if sum >= 0, do: a, else: b
     lines |> Enum.filter(&(Enum.at(&1, i) == selected))
   end)
   |> Stream.drop_while(&(Enum.count(&1) > 1))
@@ -23,4 +21,4 @@ end
 lsr = process.({1, 0})
 csr = process.({0, 1})
 
-IO.inspect([lsr, csr, lsr * csr])
+IO.inspect(lsr * csr)
