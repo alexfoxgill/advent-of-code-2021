@@ -14,21 +14,28 @@ defmodule Calc do
     n * (n + 1) / 2
   end
 
-  def calculate(ints, target) do
-    ints |> Enum.reduce(0, fn x, total -> total + summation(abs(x - target)) end)
+  def calculate(cache, ints, target) do
+    case Map.fetch(cache, target) do
+      {:ok, val} ->
+        {cache, val}
+
+      _ ->
+        res = ints |> Enum.reduce(0, fn x, total -> total + summation(abs(x - target)) end)
+        {Map.put(cache, target, res), res}
+    end
   end
 
-  def calculate_min(ints, target) do
-    t0 = calculate(ints, target - 1)
-    t1 = calculate(ints, target)
+  def calculate_min(cache, ints, target) do
+    {cache, t0} = calculate(cache, ints, target - 1)
+    {cache, t1} = calculate(cache, ints, target)
 
     if t0 < t1 do
-      calculate_min(ints, target - 1)
+      calculate_min(cache, ints, target - 1)
     else
-      t2 = calculate(ints, target + 1)
+      {cache, t2} = calculate(cache, ints, target + 1)
 
       if t2 < t1 do
-        calculate_min(ints, target + 1)
+        calculate_min(cache, ints, target + 1)
       else
         t1
       end
@@ -36,4 +43,4 @@ defmodule Calc do
   end
 end
 
-Calc.calculate_min(ints, avg) |> IO.inspect()
+Calc.calculate_min(%{}, ints, avg) |> IO.inspect()
