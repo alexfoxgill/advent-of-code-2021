@@ -1,4 +1,4 @@
-input = File.stream!("day9/input-sample.txt")
+input = File.stream!("day9/input.txt")
 
 defmodule Input do
   def parse(raw) do
@@ -40,38 +40,23 @@ defmodule Grid do
     grid.value_map[y][x]
   end
 
-  def with_flow(grid) do
-    Stream.map(grid.value_map, fn {y, row} ->
-      Stream.map(row, fn {x, value} ->
-        flow =
-          neighbours(grid, {x, y})
-          |> Map.put(:trough, value)
-          |> Enum.min_by(fn {_, val} -> val end)
-          |> elem(0)
-
-        %{
-          value: value,
-          flow: flow
-        }
-      end)
-    end)
-    |> from_lists()
-  end
-
   def find_troughs(grid) do
     Stream.flat_map(grid.value_map, fn {y, row} ->
-      Stream.map(row, fn {x, value} ->
-        Map.put(value, :xy, {x, y})
+      Stream.flat_map(row, fn {x, value} ->
+        is_trough =
+          neighbours(grid, {x, y})
+          |> Enum.all?(&(&1.value > value))
+
+        if is_trough, do: [{x, y}], else: []
       end)
     end)
-    |> Stream.filter(fn item -> item.flow == :trough end)
   end
 
   def neighbours(grid, from) do
     [:north, :south, :west, :east]
-    |> Enum.map(fn dir -> {dir, get(grid, go(from, dir))} end)
-    |> Enum.filter(fn {_, val} -> val != nil end)
-    |> Enum.into(%{})
+    |> Enum.map(&go(from, &1))
+    |> Enum.map(fn xy -> %{xy: xy, value: get(grid, xy)} end)
+    |> Enum.filter(&(&1.value != nil))
   end
 
   def go({x, y}, dir) do
@@ -83,19 +68,19 @@ defmodule Grid do
     end
   end
 
-  def trace_inflow_size(grid, pos) do
-    1 +
-      (grid
-       |> neighbours(pos)
-       |> Enum.map(fn
-         {_, %{value: 9}} -> 0
-         {:north, %{flow: :south}} -> trace_inflow_size(grid, go(pos, :north))
-         {:south, %{flow: :north}} -> trace_inflow_size(grid, go(pos, :south))
-         {:west, %{flow: :east}} -> trace_inflow_size(grid, go(pos, :west))
-         {:east, %{flow: :west}} -> trace_inflow_size(grid, go(pos, :east))
-         _ -> 0
-       end)
-       |> Enum.sum())
+  def basin_size(grid, start) do
+    search_basin(grid, start, MapSet.new([start]))
+    |> MapSet.size()
+  end
+
+  defp search_basin(grid, current, found) do
+    grid
+    |> neighbours(current)
+    |> Enum.reject(fn
+      %{value: 9} -> true
+      %{xy: xy} -> MapSet.member?(found, xy)
+    end)
+    |> Enum.reduce(found, fn %{xy: xy}, found -> search_basin(grid, xy, MapSet.put(found, xy)) end)
   end
 end
 
@@ -103,14 +88,12 @@ grid =
   input
   |> Input.parse()
   |> Grid.from_lists()
-  |> Grid.with_flow()
 
-troughs =
-  grid
-  |> Grid.find_troughs()
-  |> Enum.map(&Grid.trace_inflow_size(grid, &1.xy))
-  |> Enum.to_list()
-  |> Enum.sort(:desc)
-  |> Enum.take(3)
-  |> Enum.product()
-  |> IO.inspect()
+grid
+|> Grid.find_troughs()
+|> Enum.to_list()
+|> Enum.map(&Grid.basin_size(grid, &1))
+|> Enum.sort(:desc)
+|> Enum.take(3)
+|> Enum.product()
+|> IO.inspect()
