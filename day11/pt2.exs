@@ -75,7 +75,5 @@ parsed =
   |> Enum.map(&(&1 - ?0))
 
 Stream.iterate(parsed, fn grid -> Grid.step(grid) end)
-|> Enum.take(101)
-|> Enum.map(fn xs -> Enum.count(xs, &(&1 == 0)) end)
-|> Enum.sum()
+|> Enum.find_index(fn grid -> Enum.all?(grid, &(&1 == 0)) end)
 |> IO.inspect()
