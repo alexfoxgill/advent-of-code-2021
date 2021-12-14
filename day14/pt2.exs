@@ -1,4 +1,4 @@
-input = File.stream!("day14/input-sample.txt")
+input = File.stream!("day14/input.txt")
 
 defmodule Input do
   def parse(stream) do
@@ -38,10 +38,9 @@ defmodule Puzzle do
   def solve(template, rules, max_depth) do
     pairs = Map.keys(rules)
 
-    depth_0 = get_depth_0_map(pairs)
-
-    cache =
-      depth_map_stream(depth_0, pairs, rules)
+    precalc_lookup =
+      get_depth_0_map(pairs)
+      |> depth_map_stream(pairs, rules)
       |> Enum.at(max_depth)
 
     initial_map = offset_initial_duplicates(template)
@@ -49,10 +48,8 @@ defmodule Puzzle do
     counts =
       template
       |> Enum.chunk_every(2, 1, :discard)
-      |> Stream.map(fn [a, b] -> cache[{a, b}] end)
+      |> Stream.map(fn [a, b] -> precalc_lookup[{a, b}] end)
       |> Enum.reduce(initial_map, &merge_count_maps/2)
-      |> Enum.map(&{List.to_string([elem(&1, 0)]), elem(&1, 1)})
-      |> IO.inspect()
       |> Enum.map(&elem(&1, 1))
 
     Enum.max(counts) - Enum.min(counts)
@@ -63,21 +60,18 @@ defmodule Puzzle do
   end
 
   defp get_depth_0_map(pairs) do
-    pairs
-    |> Enum.map(fn pair ->
+    Map.new(pairs, fn pair ->
       {pair,
        case pair do
          {a, a} -> %{a => 2}
          {a, b} -> %{a => 1, b => 1}
        end}
     end)
-    |> Map.new()
   end
 
   defp depth_map_stream(depth_0, pairs, rules) do
     Stream.iterate(depth_0, fn lower_cache ->
-      pairs
-      |> Stream.map(fn {a, c} ->
+      Map.new(pairs, fn {a, c} ->
         b = rules[{a, c}]
         a_b = lower_cache[{a, b}]
         b_c = lower_cache[{b, c}]
@@ -88,20 +82,17 @@ defmodule Puzzle do
 
         {{a, c}, a_c}
       end)
-      |> Map.new()
     end)
   end
 
   defp offset_initial_duplicates(template) do
     template
     |> Enum.slice(1..-2)
-    |> Enum.group_by(& &1)
-    |> Enum.map(fn {x, xs} -> {x, -1 * Enum.count(xs)} end)
-    |> Map.new()
+    |> Enum.reduce(%{}, fn x, count -> Map.update(count, x, 1, &(&1 - 1)) end)
   end
 end
 
 {template, rules} = Input.parse(input)
 
-Puzzle.solve(template, rules, 10)
+Puzzle.solve(template, rules, 40)
 |> IO.inspect()
