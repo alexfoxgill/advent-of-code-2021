@@ -38,51 +38,66 @@ defmodule Puzzle do
   def solve(template, rules, max_depth) do
     pairs = Map.keys(rules)
 
-    depth_0 =
-      pairs
-      |> Enum.map(fn pair ->
-        {pair,
-         case pair do
-           {a, a} -> %{a => 2}
-           {a, b} -> %{a => 1, b => 1}
-         end}
-      end)
-      |> Map.new()
+    depth_0 = get_depth_0_map(pairs)
 
     cache =
-      Stream.iterate(depth_0, fn lower_cache ->
-        pairs
-        |> Enum.reduce(%{}, fn {a, c}, current_cache ->
-          b = rules[{a, c}]
-          a_b = lower_cache[{a, b}]
-          b_c = lower_cache[{b, c}]
-
-          a_c =
-            Map.merge(a_b, b_c, fn _, v1, v2 -> v1 + v2 end)
-            |> Map.update(b, 0, &(&1 - 1))
-
-          Map.put(current_cache, {a, c}, a_c)
-        end)
-      end)
+      depth_map_stream(depth_0, pairs, rules)
       |> Enum.at(max_depth)
 
-    initial_map =
-      template
-      |> Enum.slice(1..-2)
-      |> Enum.group_by(& &1)
-      |> Enum.map(fn {x, xs} -> {x, -1 * Enum.count(xs)} end)
-      |> Map.new()
+    initial_map = offset_initial_duplicates(template)
 
     counts =
       template
       |> Enum.chunk_every(2, 1, :discard)
       |> Stream.map(fn [a, b] -> cache[{a, b}] end)
-      |> Enum.reduce(initial_map, &Map.merge(&1, &2, fn _, v1, v2 -> v1 + v2 end))
+      |> Enum.reduce(initial_map, &merge_count_maps/2)
       |> Enum.map(&{List.to_string([elem(&1, 0)]), elem(&1, 1)})
       |> IO.inspect()
       |> Enum.map(&elem(&1, 1))
 
     Enum.max(counts) - Enum.min(counts)
+  end
+
+  defp merge_count_maps(map_a, map_b) do
+    Map.merge(map_a, map_b, fn _, v1, v2 -> v1 + v2 end)
+  end
+
+  defp get_depth_0_map(pairs) do
+    pairs
+    |> Enum.map(fn pair ->
+      {pair,
+       case pair do
+         {a, a} -> %{a => 2}
+         {a, b} -> %{a => 1, b => 1}
+       end}
+    end)
+    |> Map.new()
+  end
+
+  defp depth_map_stream(depth_0, pairs, rules) do
+    Stream.iterate(depth_0, fn lower_cache ->
+      pairs
+      |> Stream.map(fn {a, c} ->
+        b = rules[{a, c}]
+        a_b = lower_cache[{a, b}]
+        b_c = lower_cache[{b, c}]
+
+        a_c =
+          merge_count_maps(a_b, b_c)
+          |> Map.update(b, 0, &(&1 - 1))
+
+        {{a, c}, a_c}
+      end)
+      |> Map.new()
+    end)
+  end
+
+  defp offset_initial_duplicates(template) do
+    template
+    |> Enum.slice(1..-2)
+    |> Enum.group_by(& &1)
+    |> Enum.map(fn {x, xs} -> {x, -1 * Enum.count(xs)} end)
+    |> Map.new()
   end
 end
 
