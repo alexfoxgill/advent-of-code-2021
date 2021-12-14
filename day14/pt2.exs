@@ -41,18 +41,19 @@ defmodule Puzzle do
     precalc_lookup =
       get_depth_0_map(pairs)
       |> depth_map_stream(pairs, rules)
-      |> Enum.at(max_depth)
+      |> Enum.fetch!(max_depth)
 
     initial_map = offset_initial_duplicates(template)
 
-    counts =
+    {min, max} =
       template
       |> Enum.chunk_every(2, 1, :discard)
       |> Stream.map(fn [a, b] -> precalc_lookup[{a, b}] end)
       |> Enum.reduce(initial_map, &merge_count_maps/2)
-      |> Enum.map(&elem(&1, 1))
+      |> Stream.map(&elem(&1, 1))
+      |> Enum.min_max()
 
-    Enum.max(counts) - Enum.min(counts)
+    max - min
   end
 
   defp merge_count_maps(map_a, map_b) do
@@ -60,13 +61,7 @@ defmodule Puzzle do
   end
 
   defp get_depth_0_map(pairs) do
-    Map.new(pairs, fn pair ->
-      {pair,
-       case pair do
-         {a, a} -> %{a => 2}
-         {a, b} -> %{a => 1, b => 1}
-       end}
-    end)
+    Map.new(pairs, fn p -> {p, Enum.frequencies(Tuple.to_list(p))} end)
   end
 
   defp depth_map_stream(depth_0, pairs, rules) do
