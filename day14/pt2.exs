@@ -19,9 +19,7 @@ defmodule Input do
   end
 
   defp parse_rule(rule) do
-    %{"from" => from, "to" => to} =
-      ~r/(?<from>[A-Z]{2}) -> (?<to>[A-Z])/
-      |> Regex.named_captures(rule)
+    [from, to] = String.split(rule, " -> ")
 
     from =
       from
