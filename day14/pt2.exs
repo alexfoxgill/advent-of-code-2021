@@ -1,4 +1,4 @@
-input = File.stream!("day14/input.txt")
+input = File.stream!("day14/input-sample.txt")
 
 defmodule Input do
   def parse(stream) do
@@ -34,61 +34,59 @@ defmodule Input do
   end
 end
 
-{template, rules} = Input.parse(input)
-pairs = Map.keys(rules)
-max_depth = 40
+defmodule Puzzle do
+  def solve(template, rules, max_depth) do
+    pairs = Map.keys(rules)
 
-depth_0 =
-  pairs
-  |> Enum.map(fn pair ->
-    {pair,
-     case pair do
-       {a, a} -> %{a => 2}
-       {a, b} -> %{a => 1, b => 1}
-     end}
-  end)
-  |> Map.new()
-
-initial_cache = %{0 => depth_0}
-
-cache =
-  Stream.iterate(1, &(&1 + 1))
-  |> Stream.scan(initial_cache, fn depth, cache ->
-    prev = cache[depth - 1]
-
-    current_depth_cache =
+    depth_0 =
       pairs
-      |> Enum.reduce(%{}, fn {a, c}, current_depth_cache ->
-        b = rules[{a, c}]
-        a_b = prev[{a, b}]
-        b_c = prev[{b, c}]
-
-        a_c =
-          Map.merge(a_b, b_c, fn _, v1, v2 -> v1 + v2 end)
-          |> Map.update(b, 0, &(&1 - 1))
-
-        Map.put(current_depth_cache, {a, c}, a_c)
+      |> Enum.map(fn pair ->
+        {pair,
+         case pair do
+           {a, a} -> %{a => 2}
+           {a, b} -> %{a => 1, b => 1}
+         end}
       end)
+      |> Map.new()
 
-    Map.put(cache, depth, current_depth_cache)
-  end)
-  |> Enum.at(max_depth)
+    cache =
+      Stream.iterate(depth_0, fn lower_cache ->
+        pairs
+        |> Enum.reduce(%{}, fn {a, c}, current_cache ->
+          b = rules[{a, c}]
+          a_b = lower_cache[{a, b}]
+          b_c = lower_cache[{b, c}]
 
-initial_map =
-  template
-  |> Enum.slice(1..-2)
-  |> Enum.group_by(& &1)
-  |> Enum.map(fn {x, xs} -> {x, -1 * Enum.count(xs)} end)
-  |> Map.new()
+          a_c =
+            Map.merge(a_b, b_c, fn _, v1, v2 -> v1 + v2 end)
+            |> Map.update(b, 0, &(&1 - 1))
 
-counts =
-  template
-  |> Enum.chunk_every(2, 1, :discard)
-  |> Stream.map(fn [a, b] -> cache[max_depth][{a, b}] end)
-  |> Enum.reduce(initial_map, &Map.merge(&1, &2, fn _, v1, v2 -> v1 + v2 end))
-  |> Enum.map(&{List.to_string([elem(&1, 0)]), elem(&1, 1)})
-  |> IO.inspect()
-  |> Enum.map(&elem(&1, 1))
+          Map.put(current_cache, {a, c}, a_c)
+        end)
+      end)
+      |> Enum.at(max_depth)
 
-(Enum.max(counts) - Enum.min(counts))
+    initial_map =
+      template
+      |> Enum.slice(1..-2)
+      |> Enum.group_by(& &1)
+      |> Enum.map(fn {x, xs} -> {x, -1 * Enum.count(xs)} end)
+      |> Map.new()
+
+    counts =
+      template
+      |> Enum.chunk_every(2, 1, :discard)
+      |> Stream.map(fn [a, b] -> cache[{a, b}] end)
+      |> Enum.reduce(initial_map, &Map.merge(&1, &2, fn _, v1, v2 -> v1 + v2 end))
+      |> Enum.map(&{List.to_string([elem(&1, 0)]), elem(&1, 1)})
+      |> IO.inspect()
+      |> Enum.map(&elem(&1, 1))
+
+    Enum.max(counts) - Enum.min(counts)
+  end
+end
+
+{template, rules} = Input.parse(input)
+
+Puzzle.solve(template, rules, 10)
 |> IO.inspect()
