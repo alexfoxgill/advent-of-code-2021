@@ -115,8 +115,3 @@ end
 Stream.iterate(grid, &Grid.step(&1, decoder))
 |> Enum.at(50)
 |> Grid.count_lit_cells()
-
-# |> Grid.render()
-# |> Grid.step(decoder)
-# |> Grid.render()
-# |> Grid.count_lit_cells()
